@@ -138,6 +138,27 @@ _STALE_SECONDS: int = 600
 longer than this is reset to ``pending`` (worker crash recovery).
 10 min is conservative — extraction batches typically take 30-90s."""
 
+_LEASE_HEARTBEAT_SECONDS: int = 60
+"""Refresh claimed rows while a model call runs longer than the stale window."""
+
+
+async def _heartbeat_extraction_leases(
+    mongodb: Any,
+    keys: list[tuple[str, str, str]],
+    channel_id: str,
+    interval_seconds: float,
+) -> None:
+    while True:
+        await asyncio.sleep(interval_seconds)
+        try:
+            await mongodb.refresh_extraction_leases(keys)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "ExtractionWorker: lease refresh failed channel=%s error=%s",
+                channel_id,
+                type(exc).__name__,
+            )
+
 
 def _retry_backoff_seconds(attempt_count: int) -> int:
     """Look up the backoff seconds for a given attempt count.
@@ -725,6 +746,12 @@ class ExtractionWorker:
             )
             batch_index_offset = 0
         started = time.monotonic()
+
+        lease_task = asyncio.create_task(
+            _heartbeat_extraction_leases(
+                stores.mongodb, valid_keys, channel_id, _LEASE_HEARTBEAT_SECONDS
+            )
+        )
         try:
             result = await self._batch_processor.process_messages(
                 messages=normalized,
@@ -746,6 +773,11 @@ class ExtractionWorker:
             )
             return 0, len(valid_keys)
         finally:
+            lease_task.cancel()
+            try:
+                await lease_task
+            except asyncio.CancelledError:
+                pass
             # Drain any sync_summary metric bucket that process_messages may
             # have left behind on the exception path. Idempotent: returns
             # {} when the success path already popped the bucket.

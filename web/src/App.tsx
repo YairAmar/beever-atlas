@@ -14,6 +14,7 @@ import { Header } from "@/components/layout/Header";
 import { Dashboard } from "@/pages/Dashboard";
 import { Channels } from "@/pages/Channels";
 import { AskPage } from "@/pages/AskPage";
+import { WorkspaceAskPage } from "@/pages/WorkspaceAskPage";
 import { SharedAskPage } from "@/pages/SharedAskPage";
 import {
   SettingsPage,
@@ -113,6 +114,7 @@ function AppShell() {
                 <Route path="settings" element={<ChannelSettingsTab />} />
               </Route>
               <Route path="/ask" element={<AskPage />} />
+              <Route path="/ask/workspace" element={<WorkspaceAskPage />} />
               <Route path="/ask/:sessionId" element={<AskPage />} />
               <Route path="/activity" element={<ActivityPage />} />
               <Route path="/settings" element={<SettingsPage />}>

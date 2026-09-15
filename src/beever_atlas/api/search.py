@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field
 from beever_atlas.infra.auth import Principal, require_user
 from beever_atlas.infra.channel_access import assert_channel_access
 from beever_atlas.stores import get_stores
+from beever_atlas.services.workspace_scope import authorized_selected_channels
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api", tags=["search"])
@@ -59,6 +60,11 @@ async def search_facts(
     """
     if body.channel_id:
         await assert_channel_access(principal, body.channel_id)
+        channel_ids = [body.channel_id]
+    else:
+        channel_ids = await authorized_selected_channels(principal.id)
+    if not channel_ids:
+        return SearchResponse(results=[], total=0, query=body.query)
     stores = get_stores()
 
     try:
@@ -88,12 +94,18 @@ async def search_facts(
         raise HTTPException(status_code=503, detail="Embedding service unavailable") from exc
 
     try:
-        raw_results = await stores.weaviate.pseudo_hybrid_search(
-            query_vector=query_vector,
-            channel_id=body.channel_id or "",
-            limit=body.limit,
-            threshold=body.threshold,
-        )
+        raw_results = []
+        for channel_id in channel_ids:
+            raw_results.extend(
+                await stores.weaviate.pseudo_hybrid_search(
+                    query_vector=query_vector,
+                    channel_id=channel_id,
+                    limit=body.limit,
+                    threshold=body.threshold,
+                )
+            )
+        raw_results.sort(key=lambda row: row.get("similarity_score", 0.0), reverse=True)
+        raw_results = raw_results[: body.limit]
     except Exception as exc:
         logger.error("Search: hybrid search failed: %s", exc)
         raise HTTPException(status_code=500, detail="Search failed") from exc
@@ -101,6 +113,8 @@ async def search_facts(
     items: list[SearchResultItem] = []
     for r in raw_results:
         fact = r["fact"]
+        if fact.channel_id not in channel_ids:
+            continue
         items.append(
             SearchResultItem(
                 id=fact.id,
