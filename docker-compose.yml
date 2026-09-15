@@ -43,7 +43,11 @@ services:
       # Mattermost, and Slack Socket Mode do not need it.
       PUBLIC_BOT_URL: ${PUBLIC_BOT_URL:-}
     healthcheck:
-      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/api/health')"]
+      test:
+        - CMD
+        - python
+        - -c
+        - "import httpx,sys; r=httpx.get('http://localhost:8000/api/health',timeout=8); r.raise_for_status(); c=r.json().get('components',{}); sys.exit(0 if all(c.get(n,{}).get('status')=='up' for n in ('mongodb','weaviate')) else 1)"
       interval: 30s
       timeout: 10s
       retries: 3

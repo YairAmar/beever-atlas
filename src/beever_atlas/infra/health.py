@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import asyncio
 import time
+from collections.abc import Callable, Coroutine
 from dataclasses import dataclass, field
-from typing import Any, Callable, Coroutine
+from typing import Any
 
 
 @dataclass
@@ -57,7 +58,7 @@ class DependencyHealth:
             return HealthCheckResult(
                 name=name, status="up", latency_ms=round(latency, 2), critical=critical
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             latency = (time.monotonic() - start) * 1000
             return HealthCheckResult(
                 name=name,
@@ -66,7 +67,7 @@ class DependencyHealth:
                 error="timeout",
                 critical=critical,
             )
-        except Exception as e:
+        except Exception as e:  # noqa: BLE001 - report any dependency failure.
             latency = (time.monotonic() - start) * 1000
             return HealthCheckResult(
                 name=name,
@@ -100,6 +101,13 @@ class DependencyHealth:
 
 # Module-level registry used by server/app.py
 health_registry = DependencyHealth()
+
+
+async def check_shared_mongodb() -> None:
+    """Probe the client used by API routes, not a fresh temporary client."""
+    from beever_atlas.stores import get_stores
+
+    await get_stores().mongodb.db.command("ping")
 
 
 def register_health_checks() -> None:
@@ -141,13 +149,7 @@ def register_health_checks() -> None:
             await driver.close()
 
     async def check_mongodb() -> None:
-        from pymongo import AsyncMongoClient
-
-        client = AsyncMongoClient(settings.mongodb_uri, serverSelectionTimeoutMS=5000)
-        try:
-            await client.admin.command("ping")
-        finally:
-            await client.close()
+        await check_shared_mongodb()
 
     async def check_redis() -> None:
         import redis.asyncio as aioredis
