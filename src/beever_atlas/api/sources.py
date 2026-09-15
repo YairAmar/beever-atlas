@@ -28,6 +28,7 @@ from fastapi import APIRouter, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
 from beever_atlas.infra.rate_limit import limiter
+from beever_atlas.mcp_sources.store_channel import mark_channel_synced
 from beever_atlas.models.persistence import ChannelMessage
 from beever_atlas.services.push_hmac import verify_push_signature
 from beever_atlas.stores import get_stores
@@ -203,7 +204,7 @@ async def post_source_events(
         import json
 
         payload = PushEventRequest.model_validate(json.loads(body))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # Don't echo the exception class to the response — avoids leaking
         # the server-side exception taxonomy to attackers who hold a valid
         # HMAC key.
@@ -264,6 +265,17 @@ async def post_source_events(
     upsert_result = await stores.mongodb.upsert_channel_messages(rows)
     accepted = int(upsert_result.get("inserted", 0))
     deduplicated = int(upsert_result.get("matched", 0))
+
+    # Push sources do not pass through SyncRunner. Register the channel in its
+    # sync-state index so newly discovered MCP channels appear in channel
+    # discovery and can be queried. A replay must not inflate the count or
+    # move the cursor backward when an older history page arrives later.
+    await mark_channel_synced(
+        stores.mongodb,
+        payload.channel_id,
+        [row.timestamp for row in rows],
+        accepted,
+    )
 
     response = PushEventResponse(
         accepted=accepted,

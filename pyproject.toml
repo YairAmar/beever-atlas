@@ -63,6 +63,7 @@ test = [
 # Standalone stdio MCP server (no HTTP, no backing stores) — used by MCP
 # registries (Glama) and local launchers; see api/mcp_server/__main__.py.
 beever-atlas-mcp = "beever_atlas.api.mcp_server.__main__:main"
+beever-atlas-mcp-ingest = "beever_atlas.mcp_sources.runner:main"
 
 [build-system]
 requires = ["hatchling"]
