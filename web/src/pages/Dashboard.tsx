@@ -176,7 +176,7 @@ export function Dashboard() {
           </p>
 
           <Link
-            to="/ask?new=1"
+            to="/ask/workspace"
             className="w-full max-w-3xl flex items-center gap-3 px-5 py-4 bg-card rounded-3xl border border-border shadow-sm hover:border-primary/30 transition-colors cursor-pointer"
           >
             <Search className="w-5 h-5 text-muted-foreground/60" />
@@ -197,7 +197,7 @@ export function Dashboard() {
             ].map((q) => (
               <button
                 key={q}
-                onClick={() => navigate(`/ask?q=${encodeURIComponent(q)}`)}
+                onClick={() => navigate(`/ask/workspace?q=${encodeURIComponent(q)}`)}
                 className="px-4 py-1.5 rounded-full bg-card border border-border text-sm text-muted-foreground hover:bg-muted transition-colors"
               >
                 {q}

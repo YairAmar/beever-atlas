@@ -40,6 +40,7 @@ from beever_atlas.api.sync import router as sync_router
 from beever_atlas.api.memories import router as memories_router
 from beever_atlas.api.graph import router as graph_router
 from beever_atlas.api.search import router as search_router
+from beever_atlas.api.workspace_ask import router as workspace_ask_router
 from beever_atlas.api.stats import router as stats_router
 from beever_atlas.api.topics import router as topics_router
 from beever_atlas.api.wiki import router as wiki_router
@@ -1104,6 +1105,7 @@ _auth = [Depends(require_user)]
 # is header-only. Only `loader_router` uses `_loader_auth`.
 _loader_auth = [Depends(require_user_loader)]
 app.include_router(ask_router, dependencies=_auth)
+app.include_router(workspace_ask_router, dependencies=_auth)
 # Public shared-conversation GET — auth handled inside the endpoint based on
 # the share's visibility tier (owner/auth/public). Must NOT inherit `_auth`.
 app.include_router(ask_public_router)
