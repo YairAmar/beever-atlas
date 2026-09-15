@@ -160,9 +160,6 @@ class UnresolvedClassifier:
         stores: Any,
         settings: Any | None = None,
         llm_dispatcher: Any | None = None,
-        provider: str = "gemini",
-        model: str = "gemini-2.5-flash",
-        endpoint_id: str | None = None,
     ) -> None:
         self._stores = stores
         self._settings = settings
@@ -170,9 +167,6 @@ class UnresolvedClassifier:
         # path resolves lazily so the LLM provider isn't imported at
         # lifespan time.
         self._dispatcher = llm_dispatcher
-        self._provider = provider
-        self._model = model
-        self._endpoint_id = endpoint_id
 
     async def classify_channel(
         self,
@@ -338,16 +332,17 @@ class UnresolvedClassifier:
         if self._dispatcher is not None:
             raw = await self._dispatcher(prompt)
         else:
-            from beever_atlas.services.llm_dispatch import dispatch_completion
+            from beever_atlas.llm.provider import get_llm_provider
+            from beever_atlas.services.llm_dispatch import dispatch_assignment
 
-            response = await dispatch_completion(
-                provider=self._provider,
-                model=self._model,
+            assignment = await get_llm_provider().resolve_for_call("qa_agent", self._stores)
+            if assignment is None:
+                raise RuntimeError("No configured QA assignment for unresolved classification")
+            response = await dispatch_assignment(
+                assignment=assignment,
                 messages=[{"role": "user", "content": prompt}],
-                endpoint_id=self._endpoint_id,
                 response_format={"type": "json_object"},
                 temperature=0.2,
-                _log_consumer="unresolved_classifier",
             )
             raw = response.choices[0].message.content or "{}"
 
