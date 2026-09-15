@@ -152,7 +152,7 @@ async def ask_workspace(
                     "content": f"Question: {body.question}\n\nIndexed facts:\n{context}",
                 },
             ],
-            timeout=120,
+            timeout=600,
             max_tokens=1200,
         )
     except Exception as exc:
