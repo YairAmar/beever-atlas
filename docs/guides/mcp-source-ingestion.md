@@ -57,3 +57,17 @@ Atlassian entries on this Mac have an MCP URL but no reusable auth headers in
 either agent config; a separately authorized background token or OAuth flow
 will be needed before a Jira mapping can run unattended. App-managed Codex
 connectors likewise do not expose a reusable server entry through these files.
+
+## Asking across the indexed workspace
+
+The dashboard's Ask launch opens the workspace question page. It searches all
+selected channels on connections the signed-in user can access. Channel filters
+are optional. The answer cites indexed facts and links Slack citations to their
+source messages. If any searched channel still has pending or failed extraction,
+the page says that the answer may be incomplete.
+
+Agents can use `search_memory` with its default `scope="all"` to recall facts
+across the same authorized selected channels, then use `read_provenance` for a
+consequential claim. They can pass `scope="channel:<id>"` when the channel is
+known. Broad query scope does not expand ingestion access: with the installed
+Slack MCP, only bot-member public channels can enter the index.
