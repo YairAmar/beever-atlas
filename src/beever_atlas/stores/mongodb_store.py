@@ -2099,6 +2099,28 @@ class MongoDBStore:
             claimed.append(doc)
         return claimed
 
+    async def refresh_extraction_leases(self, keys: list[tuple[str, str, str]]) -> int:
+        """Keep only this worker's in-flight rows out of the crash-recovery sweep."""
+        if not keys:
+            return 0
+        from pymongo import UpdateOne
+
+        now = datetime.now(tz=UTC)
+        ops = [
+            UpdateOne(
+                {
+                    "source_id": source_id,
+                    "channel_id": channel_id,
+                    "message_id": message_id,
+                    "extraction_status": "extracting",
+                },
+                {"$set": {"updated_at": now}},
+            )
+            for source_id, channel_id, message_id in keys
+        ]
+        result = await self._channel_messages.bulk_write(ops, ordered=False)
+        return result.modified_count
+
     async def finalize_extraction_status_bulk(
         self,
         keys: list[tuple[str, str, str]],
